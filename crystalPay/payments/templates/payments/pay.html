@@ -1,0 +1,129 @@
+{% extends 'shared/base.html' %}
+{% load static %}
+{% block style %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        body {
+            background-image: url("{% static 'final.jpg' %}");
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        #main {
+            background-color: #31bfff;
+        }
+
+    </style>
+{% endblock %}
+{% block title %}
+    {{ gateway.slug }}
+{% endblock %}
+
+{% block content %}
+    <div id="main" class="container my-3 py-3 px-3 rounded">
+        <h2 class="text-white" id="slug">{{ gateway.slug }}</h2>
+        <h5 class="text-white">Amount : {{ gateway.amount }}</h5>
+        <h5 class="text-white d-inline-flex justify-content-between align-items-center">Address
+            :{{ gateway.get_public_key }} &#160; <span onclick="copyFunction()"
+                                                       class="material-icons">
+content_copy
+</span></h5>
+        <input type="text" hidden value="{{ gateway.get_public_key }}" id="myInput">
+        <h5 class="text-white">Signer : {{ gateway.signature_public_key }}</h5>
+        <h5 class="text-white w-100 d-inline-flex justify-content-between align-items-center"><span>Paid :<span
+                id="x">{{ gateway.paid_amount }}</span>/{{ gateway.amount }}</span>
+            <button class="text-white btn btn-block btn-success  d-inline-flex justify-content-between align-items-center" id="refresh_amount">refresh paid amount &#160; <span class="material-icons">refresh</span></button></h5>
+
+
+        <div class="progress">
+            <div id="m" class="progress-bar bg-success text-white" role="progressbar"
+                 style="width: {{ gateway.width_percent }};" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
+                {{ gateway.width_percent }}</div>
+        </div>
+        <form method="post" action="{{ gateway.get_absolute_confirm_url }}">
+
+            <label for="refund_address" class="form-label text-white">Refund address</label>
+            {% if error %} <span class="text-danger">&#160;&#160;it should be at least 32 characters*</span>{% endif %}
+            <input type="text" class="form-control" id="refund_address" name="refund_address" required>
+            {% csrf_token %}
+
+
+            <div class="container my-4 rounded">
+                <ul class="list-group list-group-flush rounded">
+                    {% for key, value in gateway.get_metadata.items %}
+                        <li class="list-group-item">{{ key }} : {{ value }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="d-flex justify-content-between align-items-stretch">
+                <input class="btn btn-block btn-success" type="submit" role="button" value="confirm">
+        </form>
+        <p id="demo" class="text-white"></p>
+    </div>
+    <script>
+        // Set the date we're counting down to
+        var countDownDate = new Date("{{gateway.expiration_datetime}}").getTime();
+
+        // Update the count down every 1 second
+        var x = setInterval(function () {
+
+            // Get today's date and time
+            var now = new Date().getTime();
+
+            // Find the distance between now and the count down date
+            var distance = countDownDate - now;
+
+            // Time calculations for days, hours, minutes and seconds
+            var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            // Display the result in the element with id="demo"
+            document.getElementById("demo").innerHTML = days + "d " + hours + "h "
+                + minutes + "m " + seconds + "s ";
+
+            // If the count down is finished, write some text
+            if (distance < 0) {
+                clearInterval(x);
+                document.getElementById("demo").innerHTML = "EXPIRED";
+                location.reload();
+            }
+        }, 1000);
+        $("#refresh_amount").click(function (e) {
+            e.preventDefault();
+            var slug = '{{ gateway.slug }}';
+            // GET AJAX request
+            $.ajax({
+                type: 'GET',
+                url: "{% url 'get-paid-amount' %}",
+                data: {"slug": slug},
+                success: function (response) {
+                    // if not valid user, alert the user
+                    let paid = response['result'];
+                    let percent = response['percent']
+                    $('#x').html(paid);
+                    $('#m').html(percent);
+                    $('.progress-bar').css('width', percent);
+                },
+                error: function (response) {
+                    console.log(response)
+                }
+            })
+        })
+
+        function copyFunction() {
+            var copyText = document.getElementById("myInput");
+            /* Select the text field */
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); /* For mobile devices */
+
+            /* Copy the text inside the text field */
+            navigator.clipboard.writeText(copyText.value);
+
+            /* Alert the copied text */
+            alert("Copied the text: " + copyText.value);
+        }
+    </script>
+
+{% endblock %}
